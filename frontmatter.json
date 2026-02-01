@@ -1,0 +1,83 @@
+{
+  "$schema": "https://frontmatter.codes/frontmatter.schema.json",
+  "frontMatter.framework.id": "astro",
+  "frontMatter.preview.host": "http://localhost:4321",
+  "frontMatter.content.publicFolder": "public",
+  
+  "frontMatter.dashboard.content.showDescription": true,
+  "frontMatter.dashboard.content.cardFields": {
+    "title": "title",
+    "description": "artist",
+    "image": "cover"
+  },
+
+  "frontMatter.content.pageFolders": [
+    {
+      "title": "Videos",
+      "path": "[[workspace]]/src/content/videos",
+      "contentTypes": ["videos"]
+    }
+  ],
+  "frontMatter.taxonomy.contentTypes": [
+    {
+      "name": "videos",
+      "pageBundle": false,
+      "previewPath": null,
+      "cardTags": ["tags"],
+      "fields": [
+        {
+          "title": "Title",
+          "name": "title",
+          "type": "string",
+          "singleLine": true,
+          "required": true
+        },
+        {
+          "title": "Artist",
+          "name": "artist",
+          "type": "string",
+          "singleLine": true
+        },
+        {
+          "title": "Cover Image",
+          "name": "cover",
+          "type": "image",
+          "isPreviewImage": true
+        },
+        {
+          "title": "Video URL",
+          "name": "video_url",
+          "type": "string",
+          "singleLine": true
+        },
+        {
+          "title": "Publish Date",
+          "name": "publishDate",
+          "type": "datetime"
+        },
+        {
+          "title": "Director",
+          "name": "director",
+          "type": "string",
+          "singleLine": true
+        },
+        {
+          "title": "Tags",
+          "name": "tags",
+          "type": "tags"
+        },
+        {
+          "name": "curator_note",
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "title": "Platform Type",
+          "type": "choice",
+          "choices": ["youtube", "vimeo"],
+          "default": "youtube"
+        }
+      ]
+    }
+  ]
+}

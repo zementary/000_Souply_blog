@@ -1,0 +1,105 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '@layouts/BaseLayout.astro';
+import VideoCard from '@components/VideoCard.astro';
+
+// Get all videos, sorted by publish date (newest first), then title (A-Z)
+const allVideos = await getCollection('videos');
+const sortedVideos = allVideos.sort((a, b) => {
+  const dateA = a.data.publishDate?.getTime() || 0;
+  const dateB = b.data.publishDate?.getTime() || 0;
+  
+  // Primary sort: Date descending
+  if (dateB !== dateA) {
+    return dateB - dateA;
+  }
+  
+  // Secondary sort: Title ascending
+  return (a.data.title || '').localeCompare(b.data.title || '');
+});
+
+const allVideosData = sortedVideos.map(v => ({
+  slug: v.slug,
+  tags: v.data.tags || []
+}));
+---
+
+<BaseLayout allVideosData={allVideosData}>
+  <div class="container mx-auto px-4 md:px-8 pb-16 -mt-12 md:-mt-16 pt-6">
+    <!-- Tighter, Gallery-style Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-8 md:gap-y-10 lg:gap-x-6 lg:gap-y-12">
+      {sortedVideos.map((video, index) => (
+        <VideoCard
+          title={video.data.title}
+          artist={video.data.artist}
+          video_url={video.data.video_url}
+          slug={video.slug}
+          cover={video.data.cover}
+          priority={index < 6}
+        />
+      ))}
+    </div>
+
+    {sortedVideos.length === 0 && (
+      <div class="text-center py-24">
+        <p class="text-zinc-400 text-lg">No videos yet. Add some to get started.</p>
+      </div>
+    )}
+  </div>
+
+  <!-- Enhanced Lazy Loading Script -->
+  <script>
+    // Progressive Image Loading Enhancement
+    // Adds fade-in effect and better viewport detection
+    
+    function initProgressiveLazyLoad() {
+      const images = document.querySelectorAll('img[loading="lazy"]');
+      
+      // Add fade-in effect for loaded images
+      images.forEach(img => {
+        // Set initial opacity low
+        if (!img.complete) {
+          img.style.opacity = '0';
+          img.style.transition = 'opacity 0.3s ease-in-out';
+        }
+        
+        // Fade in when loaded
+        img.addEventListener('load', function() {
+          this.style.opacity = '1';
+        }, { once: true });
+        
+        // Handle already loaded images
+        if (img.complete && img.naturalHeight !== 0) {
+          img.style.opacity = '1';
+        }
+      });
+      
+      // Optional: Intersection Observer for priority loading
+      // (Modern browsers handle this automatically, but we can enhance it)
+      if ('IntersectionObserver' in window) {
+        const imageObserver = new IntersectionObserver((entries) => {
+          entries.forEach(entry => {
+            if (entry.isIntersecting) {
+              const img = entry.target as HTMLImageElement;
+              // Image is in viewport - browser will load it automatically
+              // We can add a visual hint here if needed
+              img.parentElement?.classList.add('in-viewport');
+            }
+          });
+        }, {
+          rootMargin: '50px' // Start loading slightly before entering viewport
+        });
+        
+        images.forEach(img => imageObserver.observe(img));
+      }
+    }
+    
+    // Initialize on page load
+    initProgressiveLazyLoad();
+    
+    // Re-initialize after Astro View Transitions
+    document.addEventListener('astro:page-load', () => {
+      initProgressiveLazyLoad();
+    });
+  </script>
+</BaseLayout>

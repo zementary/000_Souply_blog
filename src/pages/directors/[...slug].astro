@@ -1,0 +1,90 @@
+---
+import { getCollection, type CollectionEntry } from 'astro:content';
+import BaseLayout from '@layouts/BaseLayout.astro';
+import VideoCard from '@components/VideoCard.astro';
+import { slugify } from '@/utils/slugify';
+
+export async function getStaticPaths() {
+  const allVideos = await getCollection('videos');
+  
+  // Extract unique directors (with normalization)
+  const directorMap = new Map<string, CollectionEntry<'videos'>[]>();
+  
+  for (const video of allVideos) {
+    const director = video.data.director?.trim(); // Normalize whitespace
+    if (director) {
+      // Normalize director name for comparison
+      const normalizedDirector = director.replace(/\s+/g, ' ').trim();
+      
+      if (!directorMap.has(normalizedDirector)) {
+        directorMap.set(normalizedDirector, []);
+      }
+      directorMap.get(normalizedDirector)!.push(video);
+    }
+  }
+  
+  // Generate paths for each director
+  return Array.from(directorMap.entries()).map(([directorName, videos]) => {
+    // Sort videos by date (newest first) - strict chronological order
+    const sortedVideos = videos.sort((a, b) => {
+      const dateA = a.data.publishDate ? new Date(a.data.publishDate).valueOf() : 0;
+      const dateB = b.data.publishDate ? new Date(b.data.publishDate).valueOf() : 0;
+      return dateB - dateA;
+    });
+    
+    return {
+      params: { slug: slugify(directorName) },
+      props: {
+        directorName,
+        videos: sortedVideos,
+        allSlugs: allVideos.map(v => v.slug),
+      },
+    };
+  });
+}
+
+interface Props {
+  directorName: string;
+  videos: CollectionEntry<'videos'>[];
+  allSlugs: string[];
+}
+
+const { directorName, videos } = Astro.props;
+
+// Build allVideosData for navigation
+const allVideos = await getCollection('videos');
+const allVideosData = allVideos.map(v => ({
+  slug: v.slug,
+  tags: v.data.tags || []
+}));
+---
+
+<BaseLayout 
+  title={`${directorName} — Director Archive`}
+  description={`Explore all music videos directed by ${directorName} in the SOUPLY archive.`}
+  allVideosData={allVideosData}
+>
+  <div class="container mx-auto px-8 pb-32">
+    <!-- Director Name Header -->
+    <div class="mb-12">
+      <h1 class="text-4xl font-bold tracking-tight text-zinc-900 mb-2">
+        {directorName}
+      </h1>
+      <p class="text-sm tracking-wider text-zinc-500 uppercase">
+        [ DIRECTOR ARCHIVE // {videos.length} {videos.length === 1 ? 'VIDEO' : 'VIDEOS'} ]
+      </p>
+    </div>
+
+    <!-- Videos Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 lg:gap-12">
+      {videos.map((video) => (
+        <VideoCard
+          title={video.data.title}
+          artist={video.data.artist}
+          video_url={video.data.video_url}
+          slug={video.slug}
+        />
+      ))}
+    </div>
+  </div>
+</BaseLayout>

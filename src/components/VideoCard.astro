@@ -1,0 +1,57 @@
+---
+import { extractYouTubeId, extractVimeoId, detectVideoPlatform, getYouTubeThumbnail } from '@utils/video';
+
+interface Props {
+  title: string;
+  artist?: string;
+  video_url: string;
+  slug: string;
+  cover?: string;
+  priority?: boolean; // NEW: Priority loading for above-the-fold images
+}
+
+const { title, artist, video_url, slug, cover, priority = false } = Astro.props;
+
+const platform = detectVideoPlatform(video_url);
+const youtubeId = platform === 'youtube' ? extractYouTubeId(video_url) : null;
+const vimeoId = platform === 'vimeo' ? extractVimeoId(video_url) : null;
+
+// Use custom cover if provided, otherwise fallback to YouTube thumbnail
+const thumbnail = cover || (youtubeId ? getYouTubeThumbnail(youtubeId) : null);
+---
+
+<article 
+  data-video-card
+>
+  <a href={`/videos/${slug}`} class="block group">
+    <div class="relative aspect-video bg-zinc-100 overflow-hidden">
+      {thumbnail ? (
+        <img 
+          src={thumbnail} 
+          alt={title}
+          width="640"
+          height="360"
+          class="w-full h-full object-cover"
+          loading={priority ? "eager" : "lazy"}
+          decoding="async"
+          fetchpriority={priority ? "high" : "auto"}
+        />
+      ) : (
+        <div class="w-full h-full flex items-center justify-center text-zinc-400">
+          No Thumbnail
+        </div>
+      )}
+    </div>
+    
+    <div class="mt-4 pt-4 space-y-1">
+      <h2 class="text-lg font-semibold tracking-tight text-zinc-900 group-hover:text-primary-orange transition-colors">
+        {title}
+      </h2>
+      {artist && (
+        <p class="text-sm text-zinc-600">
+          {artist}
+        </p>
+      )}
+    </div>
+  </a>
+</article>

@@ -1,0 +1,101 @@
+---
+import '@/styles/global.css';
+import { ViewTransitions } from 'astro:transitions';
+import Header from '@components/Header.astro';
+import NavControls from '@components/NavControls.astro';
+import { SearchPalette } from '@/features/search';
+
+interface Props {
+  title?: string;
+  description?: string;
+  image?: string;
+  currentSlug?: string;
+  currentTags?: string[];
+  prevUrl?: string;
+  nextUrl?: string;
+  allVideosData?: Array<{ slug: string; tags: string[] }>;
+}
+
+const { 
+  title = 'SOUPLY',
+  description = "Music, Visualized. A curated archive of the world's most artistic music videos.",
+  image = '/og-image.jpg',
+  currentSlug,
+  currentTags = [],
+  prevUrl,
+  nextUrl,
+  allVideosData = []
+} = Astro.props;
+
+const fullTitle = title === 'SOUPLY' ? title : `${title} | Souply`;
+
+// Cinema Mode: Detect if we're on a video detail page
+const isCinemaMode = currentSlug !== undefined;
+
+// LOGIC: Ensure image URL is absolute for Twitter/Discord sharing
+const canonicalURL = new URL(Astro.url.pathname, Astro.site);
+const socialImageURL = new URL(image, Astro.url);
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="generator" content={Astro.generator} />
+    
+    <link rel="canonical" href={canonicalURL} />
+    <link rel="sitemap" href="/sitemap-index.xml" />
+    <title>{fullTitle}</title>
+    <meta name="title" content={fullTitle} />
+    <meta name="description" content={description} />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={Astro.url} />
+    <meta property="og:title" content={fullTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content={socialImageURL} />
+
+    <meta property="twitter:card" content="summary_large_image" />
+    <meta property="twitter:image" content={socialImageURL} />
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Crimson+Pro:ital,wght@0,400;0,500;1,400;1,500&display=swap" rel="stylesheet" />
+    
+    <!-- View Transitions: Brutalist speed (no fade, instant snap) -->
+    <ViewTransitions />
+  </head>
+  <body class={isCinemaMode ? 'bg-[#050505]' : ''}>
+    <Header isCinemaMode={isCinemaMode} />
+    
+    <main class={`${isCinemaMode ? 'flex flex-col justify-start pt-2 md:pt-3' : 'pt-12 md:pt-16'} min-h-screen pb-32 ${isCinemaMode ? 'bg-[#050505]' : 'bg-white'}`}>
+      <slot />
+    </main>
+    
+    {!isCinemaMode && (
+      <footer class="border-t border-zinc-200 mt-24 bg-white">
+        <div class="container mx-auto px-8 py-12">
+          <p class="text-sm text-zinc-600 text-center">
+            © {new Date().getFullYear()} SOUPLY. All rights reserved.
+          </p>
+        </div>
+      </footer>
+    )}
+    
+    <!-- The Floating Deck - Global Navigation -->
+    <NavControls 
+      currentSlug={currentSlug}
+      currentTags={currentTags}
+      prevUrl={prevUrl}
+      nextUrl={nextUrl}
+      allVideosData={allVideosData}
+      isCinemaMode={isCinemaMode}
+    />
+    
+    <!-- Global Search (Cmd+K) -->
+    <SearchPalette client:only="react" />
+  </body>
+</html>

@@ -1,0 +1,144 @@
+---
+import { Image } from 'astro:assets';
+import logo from '@/assets/logo.png';
+
+interface Props {
+  isCinemaMode?: boolean;
+}
+
+const { isCinemaMode = false } = Astro.props;
+---
+
+<header 
+  id="site-header"
+  class={`sticky top-0 z-50 border-b transition-all duration-500 ${
+    isCinemaMode 
+      ? 'bg-[#050505]/0 border-[#050505]/0 opacity-0 hover:opacity-100 hover:bg-[#050505]/95 hover:border-zinc-800' 
+      : 'bg-white/95 backdrop-blur-sm border-zinc-200'
+  }`}
+  data-cinema-mode={isCinemaMode}
+>
+  <div class="container mx-auto px-4 md:px-8 py-4 md:py-6">
+    <div class="flex flex-row justify-between items-start gap-4 md:gap-8">
+      <!-- Left Side: Logo + Tagline -->
+      <div class="flex flex-col">
+        <!-- Logo (Larger) -->
+        <a href="/" class="block transition-opacity hover:opacity-70">
+          <Image 
+            src={logo} 
+            alt="Souply Logo" 
+            height={128}
+            class="h-12 md:h-28 lg:h-32 w-auto"
+          />
+        </a>
+        
+        <!-- Single Line Tagline -->
+        <p class={`mt-1 md:mt-2 flex flex-col sm:flex-row sm:items-baseline ${isCinemaMode ? 'text-gray-400' : ''}`}>
+          <span class={`font-serif italic text-xs md:text-sm lg:text-base ${isCinemaMode ? 'text-gray-500' : 'text-gray-600'}`}>
+            Sub specie aeternitatis
+          </span>
+          <span class="mx-2 opacity-50 text-gray-400 hidden sm:inline">/</span>
+          <span class="font-sans font-bold text-[9px] md:text-[10px] tracking-[0.2em] uppercase text-gray-400">
+            Music, Visualized
+          </span>
+        </p>
+      </div>
+
+      <!-- Right Side: Nav Links + Search -->
+      <nav class="flex items-center gap-2 md:gap-4 lg:gap-6 pt-1 md:pt-2">
+        <a 
+          href="/about" 
+          class={`text-[10px] font-medium tracking-[0.2em] uppercase hover:underline transition-colors ${
+            isCinemaMode ? 'text-gray-400 hover:text-gray-200' : 'text-zinc-600 hover:text-zinc-900'
+          }`}
+        >
+          About
+        </a>
+        <a 
+          href="https://discord.gg/souply" 
+          target="_blank"
+          rel="noopener noreferrer"
+          class={`text-[10px] font-medium tracking-[0.2em] uppercase hover:underline transition-colors ${
+            isCinemaMode ? 'text-gray-400 hover:text-gray-200' : 'text-zinc-600 hover:text-zinc-900'
+          }`}
+        >
+          Discord
+        </a>
+        
+        <!-- Search Button with ⌘K Badge -->
+        <button 
+          id="search-trigger"
+          class={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-colors text-xs ${
+            isCinemaMode 
+              ? 'bg-zinc-800/50 hover:bg-zinc-700/50 text-gray-300' 
+              : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-700'
+          }`}
+          aria-label="Open search"
+        >
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <span class="hidden sm:inline">Search</span>
+          <kbd class={`hidden md:inline-flex items-center px-1.5 py-0.5 text-[10px] font-semibold rounded border ${
+            isCinemaMode 
+              ? 'text-gray-400 bg-zinc-900 border-zinc-700' 
+              : 'text-zinc-500 bg-white border-zinc-300'
+          }`}>
+            ⌘K
+          </kbd>
+        </button>
+      </nav>
+    </div>
+  </div>
+</header>
+
+<script>
+  // Trigger search panel to open
+  document.getElementById('search-trigger')?.addEventListener('click', () => {
+    window.dispatchEvent(new CustomEvent('open-search'));
+  });
+
+  // Cinema Mode: Smart Header Reveal
+  const header = document.getElementById('site-header');
+  const isCinemaMode = header?.getAttribute('data-cinema-mode') === 'true';
+
+  if (isCinemaMode) {
+    let hideTimeout: number;
+
+    const showHeader = () => {
+      header?.classList.remove('opacity-0');
+      header?.classList.add('opacity-100');
+      clearTimeout(hideTimeout);
+      
+      // Auto-hide after 3 seconds of no movement
+      hideTimeout = window.setTimeout(() => {
+        header?.classList.remove('opacity-100');
+        header?.classList.add('opacity-0');
+      }, 3000);
+    };
+
+    const hideHeader = () => {
+      clearTimeout(hideTimeout);
+      header?.classList.remove('opacity-100');
+      header?.classList.add('opacity-0');
+    };
+
+    // Show header when mouse is near top
+    document.addEventListener('mousemove', (e) => {
+      if (e.clientY < 100) {
+        showHeader();
+      }
+    });
+
+    // Also show on any mouse movement, but hide after delay
+    let mouseMoveTimeout: number;
+    document.addEventListener('mousemove', () => {
+      clearTimeout(mouseMoveTimeout);
+      mouseMoveTimeout = window.setTimeout(() => {
+        if (header?.matches(':hover') === false) {
+          hideHeader();
+        }
+      }, 100);
+    });
+  }
+</script>

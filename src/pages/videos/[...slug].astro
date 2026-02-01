@@ -1,0 +1,186 @@
+---
+import { getCollection, type CollectionEntry } from 'astro:content';
+import { Image } from 'astro:assets';
+import BaseLayout from '@layouts/BaseLayout.astro';
+import CinemaPlayer from '@components/CinemaPlayer';
+import { extractYouTubeId, extractVimeoId, detectVideoPlatform } from '@utils/video';
+import { slugify } from '@/utils/slugify';
+
+export async function getStaticPaths() {
+  const videos = await getCollection('videos');
+  
+  // Sort videos by publish date (newest first)
+  const sortedVideos = videos.sort((a, b) => {
+    const dateA = a.data.publishDate?.getTime() || 0;
+    const dateB = b.data.publishDate?.getTime() || 0;
+    return dateB - dateA;
+  });
+  
+  return sortedVideos.map((video, index) => {
+    // Calculate prev and next with looping
+    const prevIndex = index === 0 ? sortedVideos.length - 1 : index - 1;
+    const nextIndex = index === sortedVideos.length - 1 ? 0 : index + 1;
+    
+    // Build video metadata for Smart Shuffle
+    const allVideosData = sortedVideos.map(v => ({
+      slug: v.slug,
+      tags: v.data.tags || []
+    }));
+    
+    return {
+      params: { slug: video.slug },
+      props: { 
+        video,
+        prevUrl: `/videos/${sortedVideos[prevIndex].slug}`,
+        nextUrl: `/videos/${sortedVideos[nextIndex].slug}`,
+        allVideosData,
+      },
+    };
+  });
+}
+
+interface Props {
+  video: CollectionEntry<'videos'>;
+  prevUrl: string;
+  nextUrl: string;
+  allVideosData: Array<{ slug: string; tags: string[] }>;
+}
+
+const { video, prevUrl, nextUrl, allVideosData } = Astro.props;
+const { Content } = await video.render();
+
+// Detect platform and extract appropriate video ID
+const platform = detectVideoPlatform(video.data.video_url);
+const youtubeId = platform === 'youtube' ? extractYouTubeId(video.data.video_url) : null;
+const vimeoId = platform === 'vimeo' ? extractVimeoId(video.data.video_url) : null;
+
+// Cover image logic: Use provided cover or fallback to YouTube default
+// Supports both remote URLs (http/https) and public paths (/covers/...)
+const coverImage = video.data.cover 
+  ? video.data.cover  // Direct use: remote URL or public path
+  : youtubeId 
+    ? `https://i.ytimg.com/vi/${youtubeId}/maxresdefault.jpg` // YouTube fallback
+    : null; // No fallback for Vimeo (requires API call)
+
+// Industry standard abbreviations
+const roleAbbreviations: Record<string, string> = {
+  'Director': 'Director',
+  'Production Company': 'Prod Co',
+  'DoP': 'DoP',
+  'Editor': 'Edit',
+  'Colorist': 'Color',
+  'Art Director': 'Art Director',
+  'VFX': 'VFX',
+  'Sound Design': 'Sound',
+  'Label': 'Label',
+};
+
+// Credits list with labels (preserve original key for special rendering)
+const credits = [
+  { key: 'Director', label: 'Director', value: video.data.director },
+  { key: 'Production Company', label: 'Production Company', value: video.data.production || 'N/A' },
+  { key: 'DoP', label: 'DoP', value: video.data.dop },
+  { key: 'Editor', label: 'Editor', value: video.data.editor },
+  { key: 'Colorist', label: 'Colorist', value: video.data.colorist },
+  { key: 'Art Director', label: 'Art Director', value: video.data.art_director },
+  { key: 'VFX', label: 'VFX', value: video.data.vfx },
+  { key: 'Sound Design', label: 'Sound Design', value: video.data.sound_design },
+  { key: 'Label', label: 'Label', value: video.data.label },
+].filter(credit => credit.value).map(credit => ({
+  key: credit.key,
+  label: roleAbbreviations[credit.label] || credit.label,
+  value: credit.value
+})); // Only show credits that exist and apply abbreviations
+---
+
+<BaseLayout 
+  title={`${video.data.title} - ${video.data.artist || 'Unknown Artist'}`}
+  description={video.data.curator_note || `Watch ${video.data.title} by ${video.data.artist || 'Unknown Artist'} on Souply.`}
+  image={video.data.cover}
+  currentSlug={video.slug}
+  currentTags={[]}
+  prevUrl={prevUrl}
+  nextUrl={nextUrl}
+  allVideosData={allVideosData}
+>
+  <!-- Symmetrical Ghost Layout: 3-Column Grid -->
+  <div class="w-full max-w-[96vw] mx-auto pb-12 px-4 md:px-0">
+    <div class="flex flex-col xl:grid xl:grid-cols-12 gap-6 md:gap-8 items-start">
+      
+      <!-- Left Spacer (Hidden on mobile/tablet, visible on XL screens) -->
+      <div class="hidden xl:block xl:col-span-2"></div>
+      
+      <!-- Center Column: Video Player + Title -->
+      <div class="w-full xl:col-span-8 flex flex-col gap-4 md:gap-6">
+        <!-- Video Player -->
+        <div class="w-full max-w-6xl aspect-video shadow-2xl relative z-10 bg-black mx-auto mb-4 md:mb-6">
+          {(platform === 'youtube' && youtubeId) || (platform === 'vimeo' && vimeoId) ? (
+            <CinemaPlayer 
+              platform={platform}
+              videoId={platform === 'youtube' ? youtubeId! : vimeoId!}
+              coverImage={coverImage}
+              nextUrl={nextUrl}
+              client:load
+            />
+          ) : (
+            <div class="w-full h-full bg-zinc-900 flex items-center justify-center">
+              <p class="text-zinc-500">Invalid video URL</p>
+            </div>
+          )}
+        </div>
+        
+        <!-- Title & Artist (Below Video) -->
+        <div class="text-left px-1">
+          <h1 class="text-xl md:text-2xl lg:text-3xl font-bold tracking-tighter text-white leading-tight">
+            {video.data.title}
+          </h1>
+          <h2 class="text-base md:text-lg lg:text-xl text-gray-400 mt-1">
+            {video.data.artist && <span>{video.data.artist}</span>}
+            {video.data.artist && video.data.publishDate && <span> • </span>}
+            {video.data.publishDate && (
+              <span>
+                {video.data.publishDate.getFullYear()}
+              </span>
+            )}
+          </h2>
+        </div>
+      </div>
+      
+      <!-- Right Column: Metadata (Credits + Note) -->
+      <div class="w-full xl:col-span-2 flex flex-col gap-4 md:gap-6 text-sm text-gray-500 text-left xl:pl-4">
+        <!-- Credits Section -->
+        {credits.length > 0 && (
+          <div class="space-y-3">
+            {credits.map(({ key, label, value }) => (
+              <div class="flex flex-col">
+                <div class="text-gray-600 uppercase tracking-wider text-[10px] mb-0.5">
+                  {label}
+                </div>
+                <div class="text-gray-400 text-sm font-medium">
+                  {key === 'Director' ? (
+                    <a 
+                      href={`/directors/${slugify(value)}`}
+                      class="hover:text-gray-200 transition-colors duration-200 underline decoration-gray-600 hover:decoration-gray-400 underline-offset-2"
+                    >
+                      {value}
+                    </a>
+                  ) : (
+                    <span>{value}</span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        
+        <!-- Curator Note -->
+        {video.data.curator_note && (
+          <div class="prose prose-invert prose-sm text-gray-400 italic leading-relaxed">
+            {video.data.curator_note}
+          </div>
+        )}
+      </div>
+      
+    </div>
+  </div>
+</BaseLayout>

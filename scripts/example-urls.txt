@@ -1,0 +1,11 @@
+# Example YouTube URLs for batch ingestion
+# Lines starting with # are comments and will be ignored
+# Add one YouTube URL per line
+
+# Example: Beyoncé - Formation (2016)
+# https://www.youtube.com/watch?v=WDZJPJV__bQ
+
+# Example: The Weeknd - Blinding Lights (2020)
+# https://www.youtube.com/watch?v=fHI8X4OXluQ
+
+# Uncomment URLs above to test batch mode

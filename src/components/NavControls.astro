@@ -1,0 +1,296 @@
+---
+interface Props {
+  currentSlug?: string;
+  currentTags?: string[];
+  prevUrl?: string;
+  nextUrl?: string;
+  allVideosData?: Array<{ slug: string; tags: string[] }>;
+  isCinemaMode?: boolean;
+}
+
+const { currentSlug, currentTags = [], prevUrl, nextUrl, allVideosData = [], isCinemaMode = false } = Astro.props;
+---
+
+<!-- The Floating Deck / Ghost Dock -->
+<nav 
+  id="ghost-dock"
+  class={`fixed bottom-6 md:bottom-8 left-1/2 -translate-x-1/2 z-[9999] shadow-xl rounded-full px-6 md:px-8 py-3 md:py-4 flex items-center gap-6 md:gap-8 w-auto transition-all duration-700 ${
+    isCinemaMode 
+      ? 'bg-white/15 backdrop-blur-md border-2 border-white/30 opacity-100 text-white' 
+      : 'bg-white border border-zinc-200 opacity-100 text-zinc-700'
+  }`}
+  style="pointer-events: auto;"
+  data-current-slug={currentSlug}
+  data-current-tags={JSON.stringify(currentTags)}
+  data-all-videos={JSON.stringify(allVideosData)}
+  data-cinema-mode={isCinemaMode}
+>
+  <!-- PREV Button -->
+  {prevUrl && (
+    <a 
+      href={prevUrl}
+      class={`nav-btn transition-all duration-200 cursor-pointer block p-3 md:p-2 -m-3 md:-m-2 relative ${
+        isCinemaMode ? 'text-white hover:text-white active:text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]' : 'text-zinc-700 hover:text-primary-orange active:text-primary-orange'
+      }`}
+      aria-label="Previous video"
+    >
+      <svg width="32" height="32" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" class="md:w-7 md:h-7 pointer-events-none">
+        <path d="M17 21L10 14L17 7" stroke="currentColor" stroke-width="3.5" stroke-linecap="square" stroke-linejoin="miter"/>
+      </svg>
+    </a>
+  )}
+  
+  <!-- SHUFFLE Button (Always Present) -->
+  <button 
+    id="shuffle-nav-btn"
+    class={`nav-btn transition-colors duration-200 cursor-pointer p-3 md:p-2 -m-3 md:-m-2 relative ${
+      isCinemaMode ? 'text-white hover:text-white active:text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]' : 'text-zinc-700 hover:text-primary-orange active:text-primary-orange'
+    }`}
+    aria-label="Random video"
+  >
+    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 md:w-7 md:h-7 pointer-events-none">
+      <path d="M16 3L21 3L21 8" stroke="currentColor" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter"/>
+      <path d="M4 20L21 3" stroke="currentColor" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter"/>
+      <path d="M21 16L21 21L16 21" stroke="currentColor" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter"/>
+      <path d="M15 15L21 21" stroke="currentColor" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter"/>
+      <path d="M4 4L9 9" stroke="currentColor" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter"/>
+    </svg>
+  </button>
+  
+  <!-- NEXT Button -->
+  {nextUrl && (
+    <a 
+      href={nextUrl}
+      class={`nav-btn transition-all duration-200 cursor-pointer block p-3 md:p-2 -m-3 md:-m-2 relative ${
+        isCinemaMode ? 'text-white hover:text-white active:text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]' : 'text-zinc-700 hover:text-primary-orange active:text-primary-orange'
+      }`}
+      aria-label="Next video"
+    >
+      <svg width="32" height="32" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" class="md:w-7 md:h-7 pointer-events-none">
+        <path d="M11 21L18 14L11 7" stroke="currentColor" stroke-width="3.5" stroke-linecap="square" stroke-linejoin="miter"/>
+      </svg>
+    </a>
+  )}
+</nav>
+
+<style>
+  /* Brutalist micro-interaction: push button feel */
+  .nav-btn:hover {
+    transform: scale(1.1);
+  }
+</style>
+
+<script>
+  // CRITICAL: Initialize Ghost Dock visibility logic
+  function initGhostDock() {
+    const dock = document.getElementById('ghost-dock');
+    if (!dock) return;
+    
+    const isCinemaMode = dock.getAttribute('data-cinema-mode') === 'true';
+    const isMobile = window.innerWidth < 768; // md breakpoint
+
+    if (isCinemaMode) {
+      // Mobile: Always visible with reduced opacity
+      if (isMobile) {
+        dock.classList.remove('opacity-0');
+        dock.classList.add('opacity-80');
+        
+        // Optional: Add tap-to-toggle for full opacity
+        let isFullOpacity = false;
+        const handleTap = (e: TouchEvent | MouseEvent) => {
+          // Only toggle if tapping the dock itself, not the buttons
+          if (e.target === dock) {
+            isFullOpacity = !isFullOpacity;
+            if (isFullOpacity) {
+              dock.classList.remove('opacity-80');
+              dock.classList.add('opacity-100');
+            } else {
+              dock.classList.remove('opacity-100');
+              dock.classList.add('opacity-80');
+            }
+          }
+        };
+        
+        dock.addEventListener('touchstart', handleTap);
+        dock.addEventListener('click', handleTap);
+        
+        // Store cleanup
+        (dock as any)._cleanup = () => {
+          dock.removeEventListener('touchstart', handleTap);
+          dock.removeEventListener('click', handleTap);
+        };
+      } 
+      // Desktop: Keep existing hover logic
+      else {
+        let hideTimeout: number;
+
+        const showDock = () => {
+          dock.classList.remove('opacity-0');
+          dock.classList.add('opacity-100');
+          clearTimeout(hideTimeout);
+        };
+
+        const hideDock = () => {
+          clearTimeout(hideTimeout);
+          hideTimeout = window.setTimeout(() => {
+            dock.classList.remove('opacity-100');
+            dock.classList.add('opacity-0');
+          }, 2000); // Hide after 2 seconds of inactivity
+        };
+
+        // Show dock initially for 3 seconds
+        showDock();
+        hideDock();
+
+        // Show dock when mouse moves
+        const handleMouseMove = (e: MouseEvent) => {
+          showDock();
+          hideDock();
+          
+          // Show dock when mouse is near bottom
+          const windowHeight = window.innerHeight;
+          if (e.clientY > windowHeight - 150) {
+            showDock();
+            clearTimeout(hideTimeout);
+          }
+        };
+
+        document.addEventListener('mousemove', handleMouseMove);
+
+        // Keep dock visible when hovering over it
+        const handleMouseEnter = () => {
+          showDock();
+          clearTimeout(hideTimeout);
+        };
+
+        const handleMouseLeave = () => {
+          hideDock();
+        };
+
+        dock.addEventListener('mouseenter', handleMouseEnter);
+        dock.addEventListener('mouseleave', handleMouseLeave);
+
+        // Show dock when video is paused
+        const handleVideoPaused = () => {
+          showDock();
+          clearTimeout(hideTimeout);
+        };
+
+        const handleVideoPlaying = () => {
+          hideDock();
+        };
+
+        window.addEventListener('video-paused', handleVideoPaused);
+        window.addEventListener('video-playing', handleVideoPlaying);
+
+        // Store cleanup function for later
+        (dock as any)._cleanup = () => {
+          document.removeEventListener('mousemove', handleMouseMove);
+          dock.removeEventListener('mouseenter', handleMouseEnter);
+          dock.removeEventListener('mouseleave', handleMouseLeave);
+          window.removeEventListener('video-paused', handleVideoPaused);
+          window.removeEventListener('video-playing', handleVideoPlaying);
+          clearTimeout(hideTimeout);
+        };
+      }
+    }
+  }
+
+  // Smart Shuffle: "Threaded Discovery" Algorithm
+  const shuffleHandler = () => {
+    const nav = document.querySelector('[data-all-videos]');
+    if (!nav) return;
+    
+    const currentSlug = nav.getAttribute('data-current-slug');
+    const currentTagsStr = nav.getAttribute('data-current-tags');
+    const allVideosStr = nav.getAttribute('data-all-videos');
+    
+    if (!allVideosStr) return;
+    
+    interface VideoData {
+      slug: string;
+      tags: string[];
+    }
+    
+    const allVideos: VideoData[] = JSON.parse(allVideosStr);
+    const currentTags: string[] = currentTagsStr ? JSON.parse(currentTagsStr) : [];
+    
+    // Filter out current video
+    const availableVideos = currentSlug 
+      ? allVideos.filter(v => v.slug !== currentSlug)
+      : allVideos;
+    
+    if (availableVideos.length === 0) return;
+    
+    let targetSlug: string;
+    
+    // PHASE 2 LOGIC: Smart Shuffle with "Thread" discovery
+    if (currentTags.length > 0) {
+      // Find videos that share at least one tag with current video
+      const matchedVideos = availableVideos.filter(video => 
+        video.tags.some(tag => currentTags.includes(tag))
+      );
+      
+      if (matchedVideos.length > 0) {
+        // 70% chance: Follow the thread (pick from matched)
+        // 30% chance: Break the bubble (pick from all available)
+        const shouldFollowThread = Math.random() < 0.7;
+        
+        if (shouldFollowThread) {
+          // Pick random from matched videos
+          const randomMatched = matchedVideos[Math.floor(Math.random() * matchedVideos.length)];
+          targetSlug = randomMatched.slug;
+        } else {
+          // Break the bubble - pick from all available
+          const randomVideo = availableVideos[Math.floor(Math.random() * availableVideos.length)];
+          targetSlug = randomVideo.slug;
+        }
+      } else {
+        // No matches found - pure random
+        const randomVideo = availableVideos[Math.floor(Math.random() * availableVideos.length)];
+        targetSlug = randomVideo.slug;
+      }
+    } else {
+      // Current video has no tags - pure random
+      const randomVideo = availableVideos[Math.floor(Math.random() * availableVideos.length)];
+      targetSlug = randomVideo.slug;
+    }
+    
+    // Use native navigation (View Transitions will handle it automatically)
+    window.location.href = `/videos/${targetSlug}`;
+  };
+  
+  function initShuffleButton() {
+    const shuffleBtn = document.getElementById('shuffle-nav-btn');
+    if (shuffleBtn) {
+      // Remove old listener if exists (prevent duplicates)
+      shuffleBtn.removeEventListener('click', shuffleHandler);
+      shuffleBtn.addEventListener('click', shuffleHandler);
+    }
+  }
+
+  // Initialize on first load
+  initGhostDock();
+  initShuffleButton();
+  
+  // CRITICAL: Re-initialize after View Transition navigation
+  document.addEventListener('astro:page-load', () => {
+    // Cleanup old dock listeners
+    const oldDock = document.getElementById('ghost-dock');
+    if (oldDock && (oldDock as any)._cleanup) {
+      (oldDock as any)._cleanup();
+    }
+    
+    // Reinitialize everything
+    initGhostDock();
+    initShuffleButton();
+  });
+  
+  // Cleanup before navigation
+  document.addEventListener('astro:before-swap', () => {
+    const dock = document.getElementById('ghost-dock');
+    if (dock && (dock as any)._cleanup) {
+      (dock as any)._cleanup();
+    }
+  });
+</script>

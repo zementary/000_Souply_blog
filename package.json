@@ -1,0 +1,50 @@
+{
+  "name": "souply",
+  "type": "module",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "astro dev",
+    "start": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "astro": "astro",
+    "ingest": "node scripts/ingest.js",
+    "hunter": "node scripts/hunter.js",
+    "audit": "node scripts/audit.js",
+    "force-align": "node scripts/force-align.js",
+    "match-orphans": "node scripts/match-orphans.js",
+    "repair-covers": "node scripts/repair-covers.js",
+    "test-features": "node scripts/test-new-features.js",
+    "check-quality": "node scripts/check-quality.js",
+    "validate-csv": "node scripts/validate-csv.js",
+    "find-duplicates": "node scripts/find-duplicates.js",
+    "test-lazy-loading": "node scripts/test-lazy-loading.js"
+  },
+  "dependencies": {
+    "@astrojs/mdx": "^4.0.0",
+    "@astrojs/react": "^4.4.2",
+    "@astrojs/sitemap": "^3.7.0",
+    "@astrojs/tailwind": "^5.1.3",
+    "@types/react": "^19.2.10",
+    "@types/react-dom": "^19.2.3",
+    "astro": "^5.0.5",
+    "clsx": "^2.1.1",
+    "lite-youtube-embed": "^0.3.3",
+    "lucide-react": "^0.460.0",
+    "minisearch": "^7.2.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "tailwind-merge": "^2.6.0",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "cheerio": "^1.1.2",
+    "csv-parser": "^3.2.0",
+    "minimist": "^1.2.8",
+    "node-fetch": "^3.3.2",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.7.3",
+    "yt-search": "^2.13.1",
+    "ytsr": "^3.8.4"
+  }
+}
