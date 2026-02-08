@@ -64,8 +64,8 @@ const coverImage = video.data.cover
 
 // Industry standard abbreviations
 const roleAbbreviations: Record<string, string> = {
-  'Director': 'Director',
-  'Production Company': 'Prod Co',
+  'Director': 'DIR',
+  'Production Company': 'PROD',
   'DoP': 'DoP',
   'Editor': 'Edit',
   'Colorist': 'Color',
@@ -75,7 +75,7 @@ const roleAbbreviations: Record<string, string> = {
   'Label': 'Label',
 };
 
-// Credits list with labels (preserve original key for special rendering)
+// 过滤仅显示有效的 credit，"N/A" 不显示，缩写标签
 const credits = [
   { key: 'Director', label: 'Director', value: video.data.director },
   { key: 'Production Company', label: 'Production Company', value: video.data.production || 'N/A' },
@@ -86,11 +86,11 @@ const credits = [
   { key: 'VFX', label: 'VFX', value: video.data.vfx },
   { key: 'Sound Design', label: 'Sound Design', value: video.data.sound_design },
   { key: 'Label', label: 'Label', value: video.data.label },
-].filter(credit => credit.value).map(credit => ({
+].filter(credit => credit.value && credit.value !== 'N/A').map(credit => ({
   key: credit.key,
   label: roleAbbreviations[credit.label] || credit.label,
   value: credit.value
-})); // Only show credits that exist and apply abbreviations
+}));
 ---
 
 <BaseLayout 
