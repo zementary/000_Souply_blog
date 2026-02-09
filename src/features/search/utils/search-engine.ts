@@ -141,8 +141,11 @@ export class SearchEngine {
       ...options,
     };
 
+    console.log('[SearchEngine] 执行搜索:', { query, searchOptions });
+
     try {
       const results = this.miniSearch.search(query, searchOptions);
+      console.log('[SearchEngine] MiniSearch 返回结果数:', results.length);
       return results as SearchResult[];
     } catch (err) {
       console.error('[SearchEngine] MiniSearch 搜索失败:', err);
@@ -226,16 +229,28 @@ export function getSearchEngine(): SearchEngine {
 export async function setupSearchEngine(documents: SearchItem[]): Promise<SearchEngine> {
   const engine = getSearchEngine();
   
+  console.log('[SearchEngine] setupSearchEngine 调用:', {
+    文档数量: documents.length,
+    已索引: engine.isIndexed(),
+    当前文档数: engine.getStats().documentCount
+  });
+  
   // 如果已经索引过，清空并重新索引（确保数据最新）
   if (engine.isIndexed()) {
+    console.log('[SearchEngine] 清空现有索引...');
     engine.clear();
   }
   
   if (documents.length > 1000) {
+    console.log('[SearchEngine] 使用异步方法索引大数据集...');
     await engine.addAllAsync(documents);
   } else {
+    console.log('[SearchEngine] 索引文档...');
     engine.addAll(documents);
   }
+  
+  const stats = engine.getStats();
+  console.log('[SearchEngine] 索引完成:', stats);
   
   return engine;
 }

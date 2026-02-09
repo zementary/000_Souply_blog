@@ -240,20 +240,27 @@ const { currentSlug, currentTags = [], prevUrl, nextUrl, allVideosData = [], isC
           // Pick random from matched videos
           const randomMatched = matchedVideos[Math.floor(Math.random() * matchedVideos.length)];
           targetSlug = randomMatched.slug;
+          
+          // Find shared tags for debug
+          const sharedTags = randomMatched.tags.filter(tag => currentTags.includes(tag));
+          console.log(`🧵 Thread followed: [${sharedTags.join(', ')}]`);
         } else {
           // Break the bubble - pick from all available
           const randomVideo = availableVideos[Math.floor(Math.random() * availableVideos.length)];
           targetSlug = randomVideo.slug;
+          console.log('🎲 Breaking the bubble: Random pick');
         }
       } else {
         // No matches found - pure random
         const randomVideo = availableVideos[Math.floor(Math.random() * availableVideos.length)];
         targetSlug = randomVideo.slug;
+        console.log('🔀 No tag matches: Pure random');
       }
     } else {
       // Current video has no tags - pure random
       const randomVideo = availableVideos[Math.floor(Math.random() * availableVideos.length)];
       targetSlug = randomVideo.slug;
+      console.log('🔀 Current video has no tags: Pure random');
     }
     
     // Use native navigation (View Transitions will handle it automatically)

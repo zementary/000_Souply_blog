@@ -37,17 +37,29 @@ export default function SearchPalette({ defaultOpen = false }: SearchPaletteProp
       try {
         setIsLoading(true);
         
+        console.log('[SearchPalette] Loading search data...');
+        
         // Fetch search data from API
         const response = await fetch('/api/search.json');
+        console.log('[SearchPalette] API response status:', response.status, response.statusText);
         
         if (!response.ok) {
           throw new Error(`API request failed: ${response.status} ${response.statusText}`);
         }
         
         const searchData: SearchItem[] = await response.json();
+        console.log('[SearchPalette] Received data:', {
+          total: searchData.length,
+          first: searchData[0],
+          firstThreeTitles: searchData.slice(0, 3).map(item => item.title)
+        });
         
         // Initialize search engine
         engineRef.current = await setupSearchEngine(searchData);
+        
+        // Verify index status
+        const stats = engineRef.current.getStats();
+        console.log('[SearchPalette] Search engine indexed:', stats);
         
         setIsLoading(false);
       } catch (err) {
@@ -99,6 +111,7 @@ export default function SearchPalette({ defaultOpen = false }: SearchPaletteProp
   // Execute search
   useEffect(() => {
     if (!engineRef.current) {
+      console.log('[SearchPalette] Search engine not initialized, skipping search');
       return;
     }
 
@@ -109,10 +122,16 @@ export default function SearchPalette({ defaultOpen = false }: SearchPaletteProp
     }
 
     try {
+      console.log('[SearchPalette] Executing search:', query);
       const searchResults = engineRef.current.search(query, {
         fuzzy: 0.2,
         prefix: true,
         limit: 10,
+      });
+      console.log('[SearchPalette] Search results:', {
+        query: query,
+        resultCount: searchResults.length,
+        topThree: searchResults.slice(0, 3).map(r => ({ title: r.title, score: r.score }))
       });
       
       setResults(searchResults);
