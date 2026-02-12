@@ -229,7 +229,7 @@ export async function ingestVideo(videoUrlOrResult, options = {}) {
       } catch (cookieError) {
         // Fallback to no-cookie mode (but still use cookies.txt if available)
         console.log('⚠️  Brave Cookie 读取失败，尝试无 Cookie 模式...');
-        const cmdWithoutCookies = `yt-dlp --no-check-certificate ${cookiesArg} --dump-json "${videoUrl}"`;
+        const cmdWithoutCookies = `yt-dlp --proxy "http://127.0.0.1:7897" --no-check-certificate --cookies cookies.txt --extractor-args "youtube:player-client=ios,web" --dump-json "${videoUrl}"`;
         const { stdout } = await execAsync(cmdWithoutCookies);
         jsonOutput = stdout;
         data = JSON.parse(jsonOutput);
