@@ -7,7 +7,7 @@ import react from '@astrojs/react';
 import sitemap from '@astrojs/sitemap';
 
 export default defineConfig({
-  site: 'https://souply.vercel.app',
+  site: 'https://souply-tv.vercel.app',
   integrations: [mdx(), tailwind({
     applyBaseStyles: false,
   }), react(), sitemap()],
