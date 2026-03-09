@@ -19,6 +19,7 @@ export default function CinemaPlayer({
 }: CinemaPlayerProps) {
   const [isEnding, setIsEnding] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [embedError, setEmbedError] = useState(false);
   const playerRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const ytPlayerRef = useRef<any>(null);
@@ -150,6 +151,13 @@ export default function CinemaPlayer({
               window.dispatchEvent(new CustomEvent('video-paused'));
             }
           },
+          onError: (event: any) => {
+            // 100: video not found / removed
+            // 101 / 150: video owner has disabled embedding
+            if ([100, 101, 150].includes(event.data)) {
+              setEmbedError(true);
+            }
+          },
         },
       });
     } catch (e) {
@@ -172,7 +180,39 @@ export default function CinemaPlayer({
       ref={playerRef}
       className={`relative aspect-video bg-black transition-opacity duration-700 ${isEnding ? 'opacity-0' : 'opacity-100'}`}
     >
-      {platform === 'youtube' ? (
+      {platform === 'youtube' && embedError ? (
+        // Embedding disabled fallback UI
+        <div
+          className="w-full h-full flex flex-col items-center justify-center gap-6"
+          style={
+            coverImage
+              ? {
+                  backgroundImage: `url('${coverImage}')`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                }
+              : { backgroundColor: '#111' }
+          }
+        >
+          <div className="absolute inset-0 bg-black/60" />
+          <div className="relative z-10 flex flex-col items-center gap-4 text-center px-6">
+            <p className="text-white/70 text-sm tracking-widest uppercase">
+              Embedding disabled
+            </p>
+            <a
+              href={`https://www.youtube.com/watch?v=${videoId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 bg-white text-black font-semibold text-sm px-5 py-2.5 hover:bg-zinc-200 transition-colors"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+              </svg>
+              Watch on YouTube
+            </a>
+          </div>
+        </div>
+      ) : platform === 'youtube' ? (
         <div
           id={`youtube-player-${videoId}`}
           className="w-full h-full"
