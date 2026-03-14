@@ -197,35 +197,38 @@ Production Company: Warner Bros`,
   },
 ];
 
-creditsTestCases.forEach((testCase, index) => {
-  console.log(`Credits Test ${index + 1}: ${testCase.name}`);
-  
-  const parsed = parseCredits(testCase.description);
-  
-  console.log(`  Director: "${parsed.director || '(none)'}"`);
-  if (testCase.expectedDirector) {
-    console.log(`  Expected Director: "${testCase.expectedDirector}"`);
+async function runCreditsTests() {
+  for (let index = 0; index < creditsTestCases.length; index++) {
+    const testCase = creditsTestCases[index];
+    console.log(`Credits Test ${index + 1}: ${testCase.name}`);
+    
+    const parsed = await parseCredits(testCase.description);
+    
+    console.log(`  Director: "${parsed.director || '(none)'}"`);
+    if (testCase.expectedDirector) {
+      console.log(`  Expected Director: "${testCase.expectedDirector}"`);
+    }
+    
+    console.log(`  Production: "${parsed.production || '(none)'}"`);
+    if (testCase.expectedProduction) {
+      console.log(`  Expected Production: "${testCase.expectedProduction}"`);
+    }
+    
+    const directorPassed = !testCase.expectedDirector || parsed.director === testCase.expectedDirector;
+    const productionPassed = !testCase.expectedProduction || parsed.production === testCase.expectedProduction;
+    
+    if (directorPassed && productionPassed) {
+      console.log(`  ✅ PASS\n`);
+      passedTests++;
+    } else {
+      console.log(`  ❌ FAIL`);
+      if (!directorPassed) console.log(`     - Director mismatch`);
+      if (!productionPassed) console.log(`     - Production mismatch`);
+      console.log('');
+      failedTests++;
+    }
   }
-  
-  console.log(`  Production: "${parsed.production || '(none)'}"`);
-  if (testCase.expectedProduction) {
-    console.log(`  Expected Production: "${testCase.expectedProduction}"`);
-  }
-  
-  const directorPassed = !testCase.expectedDirector || parsed.director === testCase.expectedDirector;
-  const productionPassed = !testCase.expectedProduction || parsed.production === testCase.expectedProduction;
-  
-  if (directorPassed && productionPassed) {
-    console.log(`  ✅ PASS\n`);
-    passedTests++;
-  } else {
-    console.log(`  ❌ FAIL`);
-    if (!directorPassed) console.log(`     - Director mismatch`);
-    if (!productionPassed) console.log(`     - Production mismatch`);
-    console.log('');
-    failedTests++;
-  }
-});
+}
 
 // Test artist normalization
 console.log('\n🔍 Testing Artist Normalization...\n');
@@ -254,21 +257,26 @@ artistTestCases.forEach((testCase) => {
   }
 });
 
-// Summary
-console.log('\n╔════════════════════════════════════════╗');
-console.log('║  TEST SUMMARY                          ║');
-console.log('╚════════════════════════════════════════╝\n');
+// Async entry point to include async credits tests
+(async () => {
+  await runCreditsTests();
 
-const totalTests = passedTests + failedTests;
-console.log(`Total Tests: ${totalTests}`);
-console.log(`✅ Passed: ${passedTests}`);
-console.log(`❌ Failed: ${failedTests}`);
-console.log(`Success Rate: ${((passedTests / totalTests) * 100).toFixed(1)}%\n`);
+  // Summary
+  console.log('\n╔════════════════════════════════════════╗');
+  console.log('║  TEST SUMMARY                          ║');
+  console.log('╚════════════════════════════════════════╝\n');
 
-if (failedTests === 0) {
-  console.log('🎉 All tests passed!\n');
-  process.exit(0);
-} else {
-  console.log('⚠️  Some tests failed. Review the output above.\n');
-  process.exit(1);
-}
+  const totalTests = passedTests + failedTests;
+  console.log(`Total Tests: ${totalTests}`);
+  console.log(`✅ Passed: ${passedTests}`);
+  console.log(`❌ Failed: ${failedTests}`);
+  console.log(`Success Rate: ${((passedTests / totalTests) * 100).toFixed(1)}%\n`);
+
+  if (failedTests === 0) {
+    console.log('🎉 All tests passed!\n');
+    process.exit(0);
+  } else {
+    console.log('⚠️  Some tests failed. Review the output above.\n');
+    process.exit(1);
+  }
+})();

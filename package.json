@@ -16,6 +16,7 @@
     "repair-covers": "node scripts/repair-covers.js",
     "test-features": "node scripts/test-new-features.js",
     "check-quality": "node scripts/check-quality.js",
+    "batch-retag": "node scripts/batch-retag.js",
     "validate-csv": "node scripts/validate-csv.js",
     "find-duplicates": "node scripts/find-duplicates.js",
     "test-lazy-loading": "node scripts/test-lazy-loading.js"

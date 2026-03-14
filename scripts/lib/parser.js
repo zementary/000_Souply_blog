@@ -3,6 +3,8 @@
  * Credit parsing and title cleaning utilities with Knowledge Base
  */
 
+import { extractCreditsWithLLM as llmExtractCredits } from './llm-credits.js';
+
 // ============================================================================
 // KNOWLEDGE BASE - Channel-to-Artist Mapping
 // ============================================================================
@@ -186,9 +188,12 @@ function validateDirector(name) {
  * NEW: Post-processing validation via validateDirector()
  * 
  * @param {string} description - Video description text
- * @returns {object} Credits object with extracted fields
+ * @param {object} [context] - Optional context for LLM fallback
+ * @param {string} [context.title] - Video title
+ * @param {string} [context.artist] - Artist name
+ * @returns {Promise<object>} Credits object with extracted fields
  */
-export function parseCredits(description) {
+export async function parseCredits(description, context = {}) {
   const credits = {};
   
   // ============================================================================
@@ -415,6 +420,38 @@ export function parseCredits(description) {
     }
   }
   
+  // ============================================================================
+  // 4. LLM FALLBACK (Non-blocking ingest-safe layer)
+  // ============================================================================
+  const llmEnabled = process.env.LLM_CREDITS_ENABLED === 'true';
+  const needsLLM =
+    (!credits.director && !credits.production) &&
+    typeof description === 'string' &&
+    description.length > 80;
+  
+  if (llmEnabled && needsLLM) {
+    try {
+      console.log('   🤖 [CREDITS] Falling back to LLM extraction layer...');
+      const { title = '', artist = '' } = context || {};
+      const llmCredits = await llmExtractCredits(description, title, artist);
+      
+      if (llmCredits) {
+        if (!credits.director && llmCredits.director) {
+          credits.director = llmCredits.director;
+        }
+        if (!credits.production && llmCredits.production) {
+          credits.production = llmCredits.production;
+        }
+        if (!credits.label && llmCredits.label) {
+          credits.label = llmCredits.label;
+        }
+      }
+    } catch (err) {
+      // LLM failure must never break ingest
+      console.log(`   ⚠️ [CREDITS] LLM fallback failed: ${err?.message || 'unknown error'}`);
+    }
+  }
+  
   return credits;
 }
 
@@ -601,10 +638,11 @@ export function cleanSongTitle(originalTitle, artistName) {
  * Extracts credits even when description format is non-standard
  * 
  * @param {string} description - Video description
- * @returns {object} Parsed credits (same format as parseCredits)
+ * @param {object} [context] - Optional context forwarded to parseCredits
+ * @returns {Promise<object>} Parsed credits (same format as parseCredits)
  */
-export function parseCreditsGeneric(description) {
+export function parseCreditsGeneric(description, context) {
   // Use the existing robust parser
   // This function exists as an alias for potential future enhancements
-  return parseCredits(description);
+  return parseCredits(description, context);
 }

@@ -151,44 +151,47 @@ let passedCount = 0;
 let failedCount = 0;
 const failures = [];
 
-testCases.forEach((test, index) => {
-  console.log(`Test ${index + 1}: ${test.name}`);
-  console.log('-'.repeat(70));
-  
-  const result = parseCredits(test.description);
-  const actualDirector = result.director;
-  const expectedDirector = test.expected.director;
-  
-  const passed = actualDirector === expectedDirector;
-  
-  if (!passed) {
-    failedCount++;
-    console.log(`  ❌ FAILED`);
-    console.log(`     Expected: "${expectedDirector}"`);
-    console.log(`     Got:      "${actualDirector}"`);
-    failures.push({
-      test: test.name,
-      expected: expectedDirector,
-      actual: actualDirector
-    });
-  } else {
-    passedCount++;
-    console.log(`  ✅ PASS: "${actualDirector || '(none)'}"`);
+(async () => {
+  for (let index = 0; index < testCases.length; index++) {
+    const test = testCases[index];
+    console.log(`Test ${index + 1}: ${test.name}`);
+    console.log('-'.repeat(70));
+    
+    const result = await parseCredits(test.description);
+    const actualDirector = result.director;
+    const expectedDirector = test.expected.director;
+    
+    const passed = actualDirector === expectedDirector;
+    
+    if (!passed) {
+      failedCount++;
+      console.log(`  ❌ FAILED`);
+      console.log(`     Expected: "${expectedDirector}"`);
+      console.log(`     Got:      "${actualDirector}"`);
+      failures.push({
+        test: test.name,
+        expected: expectedDirector,
+        actual: actualDirector
+      });
+    } else {
+      passedCount++;
+      console.log(`  ✅ PASS: "${actualDirector || '(none)'}"`);
+    }
+    console.log('');
   }
-  console.log('');
-});
 
-console.log('='.repeat(70));
-console.log(`\n📊 SUMMARY: ${passedCount} passed, ${failedCount} failed\n`);
+  console.log('='.repeat(70));
+  console.log(`\n📊 SUMMARY: ${passedCount} passed, ${failedCount} failed\n`);
 
-if (failedCount > 0) {
-  console.log('❌ FAILED TESTS:\n');
-  failures.forEach(({ test, expected, actual }) => {
-    console.log(`  • ${test}`);
-    console.log(`    Expected: "${expected}"`);
-    console.log(`    Got:      "${actual}"\n`);
-  });
-  process.exit(1);
-} else {
-  console.log('🎉 All tests passed! The upgraded extraction logic is working correctly.\n');
-}
+  if (failedCount > 0) {
+    console.log('❌ FAILED TESTS:\n');
+    failures.forEach(({ test, expected, actual }) => {
+      console.log(`  • ${test}`);
+      console.log(`    Expected: "${expected}"`);
+      console.log(`    Got:      "${actual}"\n`);
+    });
+    process.exit(1);
+  } else {
+    console.log('🎉 All tests passed! The upgraded extraction logic is working correctly.\n');
+  }
+})();

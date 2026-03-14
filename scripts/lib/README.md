@@ -85,7 +85,7 @@ if (result2) {
 **功能**: 解析视频描述中的制作人员信息，清理歌曲标题
 
 **导出函数**:
-- `parseCredits(description)` - 解析导演、制作公司、唱片公司
+- `parseCredits(description, context?)` - 解析导演、制作公司、唱片公司（可选传入 `{ title, artist }` 供 LLM fallback 使用）
 - `cleanSongTitle(originalTitle, artistName)` - 清理歌曲标题
 - `normalizeArtistName(artistName)` - 规范化艺术家名称
 

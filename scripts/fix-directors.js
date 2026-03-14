@@ -174,7 +174,7 @@ async function processFile(filePath) {
   }
   
   // Apply NEW extraction logic
-  const newCredits = parseCredits(description);
+  const newCredits = await parseCredits(description);
   const newDirector = newCredits.director || '';
   
   if (newDirector && newDirector !== currentDirector) {
