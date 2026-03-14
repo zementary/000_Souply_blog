@@ -1,0 +1,99 @@
+name: Scout Auto-Ingest
+
+on:
+  issues:
+    types: [closed]
+
+jobs:
+  ingest:
+    if: contains(github.event.issue.labels.*.name, 'scout-batch')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install yt-dlp
+        run: pip install yt-dlp
+
+      - name: Extract checked URLs from issue body
+        id: extract
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = context.payload.issue.body || '';
+            const lines = body.split('\n');
+            const urls = [];
+            let currentChecked = false;
+
+            for (const line of lines) {
+              const trimmed = line.trim();
+
+              if (trimmed.startsWith('- [x]') || trimmed.startsWith('- [X]')) {
+                currentChecked = true;
+              } else if (trimmed.startsWith('- [ ]')) {
+                currentChecked = false;
+              }
+
+              if (currentChecked && trimmed.startsWith('URL:')) {
+                const url = trimmed.replace('URL:', '').trim();
+                if (url.includes('youtube.com') || url.includes('youtu.be') || url.includes('vimeo.com')) {
+                  urls.push(url);
+                }
+              }
+            }
+
+            console.log(`Found ${urls.length} checked URLs`);
+            core.setOutput('urls', JSON.stringify(urls));
+            core.setOutput('count', urls.length);
+
+      - name: Run ingest for each URL
+        if: steps.extract.outputs.count > 0
+        run: |
+          URLS='${{ steps.extract.outputs.urls }}'
+          echo "Ingesting $(echo $URLS | jq length) videos..."
+
+          echo "$URLS" | jq -r '.[]' | while read -r url; do
+            echo ">>> Ingesting: $url"
+            node scripts/ingest.js "$url" || echo "Warning: failed to ingest $url, continuing..."
+            sleep 2
+          done
+
+      - name: Commit and push new entries
+        if: steps.extract.outputs.count > 0
+        run: |
+          git config user.name "MV Scout Bot"
+          git config user.email "scout@souply.tv"
+          git add src/content/videos/ public/covers/
+          if git diff --staged --quiet; then
+            echo "No new files to commit"
+          else
+            COUNT=$(git diff --staged --name-only | wc -l | tr -d ' ')
+            git commit -m "scout: auto-ingest ${COUNT} new MVs from Scout Issue #${{ github.event.issue.number }}"
+            git push
+          fi
+
+      - name: Comment on issue with results
+        if: steps.extract.outputs.count > 0
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const count = ${{ steps.extract.outputs.count }};
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `Auto-ingest complete. Processed ${count} videos. Vercel will deploy shortly.`
+            });
