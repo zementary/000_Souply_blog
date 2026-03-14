@@ -1,26 +1,29 @@
 /**
  * PROXY CONFIGURATION MODULE
  * Anti-Block Layer: Configure HTTP/HTTPS proxy for all requests
+ * Reads from process.env.HTTPS_PROXY; if unset, does nothing (no error).
  */
-
-const PROXY_URL = "http://127.0.0.1:7897";
 
 /**
- * Setup proxy environment variables
- * This enables proxy for all HTTP/HTTPS requests in the current process
+ * Setup proxy environment variables from env
+ * If HTTPS_PROXY is set, enables proxy for all HTTP/HTTPS requests in the current process.
+ * If unset, silently skips (no env set, no log, no error).
  */
 export function setupProxy() {
-  process.env.HTTPS_PROXY = PROXY_URL;
-  process.env.HTTP_PROXY = PROXY_URL;
-  console.log(`🔐 Proxy enabled: ${PROXY_URL}`);
+  const proxyUrl = process.env.HTTPS_PROXY;
+  if (proxyUrl) {
+    process.env.HTTPS_PROXY = proxyUrl;
+    process.env.HTTP_PROXY = proxyUrl;
+    console.log(`🔐 Proxy enabled: ${proxyUrl}`);
+  }
 }
 
 /**
  * Get the current proxy URL
- * @returns {string} Proxy URL
+ * @returns {string|undefined} Proxy URL or undefined if not set
  */
 export function getProxyUrl() {
-  return PROXY_URL;
+  return process.env.HTTPS_PROXY;
 }
 
 /**
@@ -28,7 +31,7 @@ export function getProxyUrl() {
  * @returns {boolean} True if proxy environment variables are set
  */
 export function isProxyEnabled() {
-  return process.env.HTTPS_PROXY === PROXY_URL || process.env.HTTP_PROXY === PROXY_URL;
+  return !!(process.env.HTTPS_PROXY || process.env.HTTP_PROXY);
 }
 
 /**

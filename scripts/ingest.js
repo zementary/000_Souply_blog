@@ -205,13 +205,15 @@ export async function ingestVideo(videoUrlOrResult, options = {}) {
     let data;
     let jsonOutput;
     
-    // Check if cookies.txt exists in project root
-    const cookiesFilePath = path.join(__dirname, '..', 'cookies.txt');
+    // Cookie file: BRAVE_COOKIE_PATH env or fallback to project root cookies.txt
+    const cookiesFilePath = process.env.BRAVE_COOKIE_PATH
+      ? path.resolve(process.env.BRAVE_COOKIE_PATH)
+      : path.join(__dirname, '..', 'cookies.txt');
     const hasCookiesFile = fs.existsSync(cookiesFilePath);
     const cookiesArg = hasCookiesFile ? `--cookies "${cookiesFilePath}"` : '';
-    
+
     if (hasCookiesFile) {
-      console.log(`🍪 Found cookies.txt, will use for authentication`);
+      console.log(`🍪 Found cookies file, will use for authentication`);
     }
     
     // Determine if we should use cookies based on platform
@@ -227,9 +229,10 @@ export async function ingestVideo(videoUrlOrResult, options = {}) {
         data = JSON.parse(jsonOutput);
         console.log('✅ Successfully fetched with Brave cookies');
       } catch (cookieError) {
-        // Fallback to no-cookie mode (but still use cookies.txt if available)
+        // Fallback: proxy from HTTPS_PROXY (if set), cookies from cookiesFilePath
         console.log('⚠️  Brave Cookie 读取失败，尝试无 Cookie 模式...');
-        const cmdWithoutCookies = `yt-dlp --proxy "http://127.0.0.1:7897" --no-check-certificate --cookies cookies.txt --extractor-args "youtube:player-client=ios,web" --dump-json "${videoUrl}"`;
+        const proxyArg = process.env.HTTPS_PROXY ? `--proxy "${process.env.HTTPS_PROXY}"` : '';
+        const cmdWithoutCookies = `yt-dlp ${proxyArg} --no-check-certificate ${cookiesArg} --extractor-args "youtube:player-client=ios,web" --dump-json "${videoUrl}"`.replace(/\s+/g, ' ').trim();
         const { stdout } = await execAsync(cmdWithoutCookies);
         jsonOutput = stdout;
         data = JSON.parse(jsonOutput);
