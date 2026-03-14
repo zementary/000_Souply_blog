@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import fs from 'fs';
 import path from 'path';
 import { exec } from 'child_process';
@@ -413,8 +414,8 @@ export async function ingestVideo(videoUrlOrResult, options = {}) {
         return { status: 'skipped', reason: 'already_exists', filePath };
       }
     }
-
-    const credits = parseCredits(description);
+    
+    const credits = await parseCredits(description, { title, artist });
 
     // ============================================================================
     // UNIVERSAL COVER LOGIC - Use yt-dlp thumbnails (YouTube + Vimeo)
