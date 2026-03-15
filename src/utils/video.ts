@@ -61,13 +61,3 @@ export function getYouTubeThumbnail(videoId: string): string {
   return `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`;
 }
 
-/**
- * Get Vimeo thumbnail URL (requires API call, so we return a placeholder)
- * For production, you might want to fetch this from Vimeo's oEmbed API
- */
-export function getVimeoThumbnail(videoId: string): string {
-  // Vimeo doesn't provide direct thumbnail URLs like YouTube
-  // You would need to fetch from: https://vimeo.com/api/v2/video/${videoId}.json
-  // For now, return a placeholder or empty string
-  return '';
-}

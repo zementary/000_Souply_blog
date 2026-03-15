@@ -1,3 +1,3 @@
 User-agent: *
 Allow: /
-Sitemap: https://souply.vercel.app/sitemap-index.xml
+Sitemap: https://souply-tv.vercel.app/sitemap-index.xml

@@ -30,8 +30,6 @@ pnpm-debug.log*
 
 # ingest script - user's private URL lists
 scripts/*-urls.txt
-!scripts/example-urls.txt
 
-# downloaded cover images (large binary files)
-src/assets/covers/
+# yt-dlp cookies
 cookies.txt

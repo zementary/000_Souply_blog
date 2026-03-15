@@ -9,7 +9,7 @@ export { default as SearchPalette } from './components/SearchPalette';
 
 // 工具类
 export { SearchEngine, getSearchEngine, setupSearchEngine } from './utils/search-engine';
-export { transformVideosToSearchItems, extractDisplayData } from './utils/transform-data';
+export { transformVideosToSearchItems } from './utils/transform-data';
 
 // 类型
 export type { SearchItem, SearchResult, SearchOptions } from './utils/search-engine';
