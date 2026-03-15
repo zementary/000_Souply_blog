@@ -129,12 +129,14 @@ export default function CinemaPlayer({
     try {
       ytPlayerRef.current = new (window as any).YT.Player(`youtube-player-${videoId}`, {
         videoId,
+        host: 'https://www.youtube-nocookie.com',
         playerVars: {
           autoplay: 1,
           playsinline: 1,
           controls: 1,
           modestbranding: 1,
           enablejsapi: 1,
+          origin: window.location.origin,
         },
         events: {
           onReady: (event: any) => {
