@@ -616,22 +616,58 @@ export async function ingestVideo(videoUrlOrResult, options = {}) {
 // ============================================================================
 
 async function main() {
-  // 解析命令行参数
   const args = process.argv.slice(2);
-  const videoUrl = args[0];
-  // 兼容两种 force 写法: npm run ingest <url> --force 或 npm run ingest <url> -- --force
   const forceUpdate = args.includes('--force') || process.argv.includes('--force');
   const repairMode = args.includes('--repair-covers') || process.argv.includes('--repair-covers');
 
+  // Batch mode: --file <path>
+  const fileIndex = args.findIndex(a => a === '--file');
+  if (fileIndex !== -1) {
+    const filePath = args[fileIndex + 1];
+    if (!filePath) {
+      console.error('❌ --file requires a path argument. e.g. --file batch-urls.txt');
+      process.exit(1);
+    }
+    const absPath = path.resolve(filePath);
+    if (!fs.existsSync(absPath)) {
+      console.error(`❌ File not found: ${absPath}`);
+      process.exit(1);
+    }
+    const urls = fs.readFileSync(absPath, 'utf-8')
+      .split('\n')
+      .map(l => l.trim())
+      .filter(l => l && !l.startsWith('#'));
+
+    console.log(`📋 Batch mode: ${urls.length} URLs from ${filePath}\n`);
+    let success = 0, skipped = 0, failed = 0;
+    for (let i = 0; i < urls.length; i++) {
+      const url = urls[i];
+      console.log(`\n[${i + 1}/${urls.length}] ${url}`);
+      try {
+        const result = await ingestVideo(url, { force: forceUpdate, repairCovers: repairMode });
+        if (result?.status === 'skipped') skipped++;
+        else success++;
+      } catch (err) {
+        console.error(`❌ Failed: ${err.message}`);
+        failed++;
+      }
+    }
+    console.log(`\n✅ Done — success: ${success}, skipped: ${skipped}, failed: ${failed}`);
+    return;
+  }
+
+  // Single URL mode
+  const videoUrl = args[0];
   if (!videoUrl) {
     console.error('❌ Error: Please provide a YouTube/Vimeo URL.');
     console.error('Usage:');
-    console.error('  npm run ingest <url>              # Ingest new video');
-    console.error('  npm run ingest <url> --force      # Force overwrite existing');
-    console.error('  npm run ingest <url> --repair-covers # Only repair missing covers');
+    console.error('  npm run ingest <url>                       # Ingest new video');
+    console.error('  npm run ingest <url> --force               # Force overwrite existing');
+    console.error('  npm run ingest <url> --repair-covers       # Only repair missing covers');
+    console.error('  npm run ingest -- --file batch-urls.txt    # Batch import from file');
     process.exit(1);
   }
-  
+
   try {
     await ingestVideo(videoUrl, { force: forceUpdate, repairCovers: repairMode });
   } catch (error) {
