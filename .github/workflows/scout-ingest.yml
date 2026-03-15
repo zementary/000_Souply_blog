@@ -35,37 +35,125 @@ jobs:
           script: |
             const body = context.payload.issue.body || '';
             const lines = body.split('\n');
-            const urls = [];
+            const entries = [];
             let currentChecked = false;
+            let currentMeta = {};
 
             for (const line of lines) {
               const trimmed = line.trim();
 
               if (trimmed.startsWith('- [x]') || trimmed.startsWith('- [X]')) {
                 currentChecked = true;
-              } else if (trimmed.startsWith('- [ ]')) {
+                currentMeta = {};
+                const m = trimmed.match(/\*\*(.+?)\s*[—–-]\s*(.+?)\*\*/);
+                if (m) {
+                  currentMeta.artist = m[1].trim();
+                  currentMeta.title = m[2].trim();
+                }
+              } else if (trimmed.startsWith('- [ ]') || trimmed.startsWith('- [x]')) {
                 currentChecked = false;
               }
 
-              if (currentChecked && trimmed.startsWith('URL:')) {
-                const url = trimmed.replace('URL:', '').trim();
-                if (url.includes('youtube.com') || url.includes('youtu.be') || url.includes('vimeo.com')) {
-                  urls.push(url);
+              if (currentChecked) {
+                if (trimmed.startsWith('URL:')) {
+                  currentMeta.url = trimmed.replace('URL:', '').trim();
+                }
+                if (trimmed.startsWith('Director:')) {
+                  currentMeta.director = trimmed.replace('Director:', '').trim();
+                  if (currentMeta.url) {
+                    entries.push({ ...currentMeta });
+                  }
                 }
               }
             }
 
-            console.log(`Found ${urls.length} checked URLs`);
-            core.setOutput('urls', JSON.stringify(urls));
-            core.setOutput('count', urls.length);
+            console.log(`Found ${entries.length} checked entries`);
 
-      - name: Run ingest for each URL
+            const direct = [];
+            const needResolve = [];
+
+            for (const entry of entries) {
+              const u = entry.url || '';
+              if (u.includes('youtube.com') || u.includes('youtu.be') || u.includes('vimeo.com')) {
+                direct.push(entry);
+              } else if (u.startsWith('http')) {
+                needResolve.push(entry);
+              }
+            }
+
+            console.log(`  Direct YouTube/Vimeo: ${direct.length}`);
+            console.log(`  Need URL resolve: ${needResolve.length}`);
+
+            core.setOutput('direct', JSON.stringify(direct));
+            core.setOutput('resolve', JSON.stringify(needResolve));
+            core.setOutput('count', entries.length);
+
+      - name: Resolve non-YouTube URLs via yt-dlp
+        id: resolve
         if: steps.extract.outputs.count > 0
         run: |
-          URLS='${{ steps.extract.outputs.urls }}'
-          echo "Ingesting $(echo $URLS | jq length) videos..."
+          RESOLVE='${{ steps.extract.outputs.resolve }}'
+          RESOLVED_FILE=$(mktemp)
+          echo "[]" > "$RESOLVED_FILE"
 
-          echo "$URLS" | jq -r '.[]' | while read -r url; do
+          echo "$RESOLVE" | jq -r '.[] | @json' | while read -r entry; do
+            URL=$(echo "$entry" | jq -r '.url')
+            ARTIST=$(echo "$entry" | jq -r '.artist // ""')
+            TITLE=$(echo "$entry" | jq -r '.title // ""')
+            DIRECTOR=$(echo "$entry" | jq -r '.director // ""')
+
+            echo "🔍 Resolving: $URL"
+
+            # Try yt-dlp to find embedded video
+            VIDEO_URL=$(yt-dlp --no-download --print webpage_url "$URL" 2>/dev/null || echo "")
+
+            if [ -z "$VIDEO_URL" ] || [ "$VIDEO_URL" = "$URL" ]; then
+              # Fallback: fetch page and grep for YouTube/Vimeo embed
+              VIDEO_URL=$(curl -sL "$URL" 2>/dev/null | grep -oP '(?:youtube\.com/embed/|youtu\.be/|player\.vimeo\.com/video/)[\w-]+' | head -1 || echo "")
+              if [ -n "$VIDEO_URL" ]; then
+                if echo "$VIDEO_URL" | grep -q "vimeo"; then
+                  VID=$(echo "$VIDEO_URL" | grep -oP '\d+$')
+                  VIDEO_URL="https://vimeo.com/$VID"
+                else
+                  VID=$(echo "$VIDEO_URL" | grep -oP '[\w-]{11}$')
+                  VIDEO_URL="https://www.youtube.com/watch?v=$VID"
+                fi
+                echo "  ✅ Found embedded video: $VIDEO_URL"
+              else
+                echo "  ⚠️  No embeddable video found, skipping"
+                continue
+              fi
+            else
+              echo "  ✅ yt-dlp resolved to: $VIDEO_URL"
+            fi
+
+            # Append to resolved list
+            CURRENT=$(cat "$RESOLVED_FILE")
+            echo "$CURRENT" | jq --arg url "$VIDEO_URL" --arg artist "$ARTIST" --arg title "$TITLE" --arg director "$DIRECTOR" \
+              '. + [{"url": $url, "artist": $artist, "title": $title, "director": $director}]' > "$RESOLVED_FILE"
+          done
+
+          RESOLVED=$(cat "$RESOLVED_FILE")
+          echo "resolved=$RESOLVED" >> $GITHUB_OUTPUT
+          echo "Resolved entries: $(echo $RESOLVED | jq length)"
+
+      - name: Run ingest for direct YouTube/Vimeo URLs
+        if: steps.extract.outputs.count > 0
+        run: |
+          DIRECT='${{ steps.extract.outputs.direct }}'
+          RESOLVED='${{ steps.resolve.outputs.resolved || "[]" }}'
+
+          # Merge direct + resolved
+          ALL=$(echo "$DIRECT" "$RESOLVED" | jq -s 'add // []')
+          COUNT=$(echo "$ALL" | jq length)
+          echo "Total URLs to ingest: $COUNT"
+
+          if [ "$COUNT" -eq 0 ]; then
+            echo "No URLs to ingest"
+            exit 0
+          fi
+
+          echo "$ALL" | jq -r '.[].url' | while read -r url; do
             echo ">>> Ingesting: $url"
             node scripts/ingest.js "$url" || echo "Warning: failed to ingest $url, continuing..."
             sleep 2
@@ -95,5 +183,5 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
-              body: `Auto-ingest complete. Processed ${count} videos. Vercel will deploy shortly.`
+              body: `Auto-ingest complete. Processed ${count} checked entries. Vercel will deploy shortly.`
             });
