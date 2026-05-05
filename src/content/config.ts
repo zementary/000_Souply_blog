@@ -10,9 +10,17 @@ const videosCollection = defineCollection({
     curator_note: z.string().optional(),
     // Credits - all optional (Full Cast Support)
     director: z.string().optional(),
-    // NOTE: "production" field can contain EITHER a company name OR a person's name
-    // Frontend should use generic label "PROD" instead of "PROD CO"
+    // production: V8.2 (2026-05-06) — strict company name only (no person names).
+    // V7.0 historical entries may still contain producer person names; new ingest
+    // enforces company-only via parser.js + Layer 2 inbox override.
     production: z.string().optional(),
+    // key_crew: V8.2 — flat string "Name (Role)" for the single most prominent
+    // technical/creative collaborator. Replaces fragmented dop/vfx/editor/colorist
+    // /art_director/sound_design typed fields for NEW ingest. Existing typed fields
+    // kept optional for back-compat with 528 historical mdx.
+    // Examples: "Marcell Rév (Cinematographer)" · "Time Based Arts (VFX)" ·
+    //           "Benjamin Millepied (Choreographer)".
+    key_crew: z.string().optional(),
     dop: z.string().optional(),
     editor: z.string().optional(),
     colorist: z.string().optional(),

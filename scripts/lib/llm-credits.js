@@ -5,6 +5,7 @@ import { HttpsProxyAgent } from 'https-proxy-agent';
 const EMPTY_CREDITS = {
   director: null,
   production: null,
+  key_crew: null,
   label: null,
 };
 
@@ -34,9 +35,10 @@ export async function extractCreditsWithLLM(description, title = '', artist = ''
 
   const systemPrompt = [
     'You are an expert metadata parser for music videos.',
-    'Your task is to extract three fields from the given video description:',
-    '- "director": the main film/video director (person).',
-    '- "production": the production company or producer / executive producer (unified field).',
+    'Your task is to extract four fields from the given video description:',
+    '- "director": the main film/video director (person name). For co-directors, join with " & ".',
+    '- "production": the production COMPANY only (e.g. CANADA, Iconoclast, Somesuch). NOT a producer person name. NOT an executive producer. Leave null if only person names are mentioned.',
+    '- "key_crew": at most ONE key technical/creative collaborator, formatted as "Name (Role)". Pick from: Cinematographer/DOP, VFX (artist or studio), Animation (artist or studio), Choreographer. Skip producer/editor/colorist/cast.',
     '- "label": the music label / record company.',
     '',
     'Rules:',
@@ -61,6 +63,7 @@ export async function extractCreditsWithLLM(description, title = '', artist = ''
     '{',
     '  "director": string | null,',
     '  "production": string | null,',
+    '  "key_crew": string | null,',
     '  "label": string | null',
     '}',
     '',
@@ -121,6 +124,7 @@ export async function extractCreditsWithLLM(description, title = '', artist = ''
     return {
       director: parsed.director ?? null,
       production: parsed.production ?? null,
+      key_crew: parsed.key_crew ?? null,
       label: parsed.label ?? null,
     };
   } catch (err) {

@@ -170,7 +170,16 @@ export function checkIfVideoExists(videoId) {
  * @returns {Promise<Object>} - Result object with status and details
  */
 export async function ingestVideo(videoUrlOrResult, options = {}) {
-  const { force = false, repairCovers = false, additionalTags = [], curatorNote = '' } = options;
+  const {
+    force = false,
+    repairCovers = false,
+    additionalTags = [],
+    curatorNote = '',
+    // Layer 2 → Layer 1 bridge: inbox-extracted authoritative meta. When
+    // provided, these override Layer 1 (yt-dlp + parser.js + LLM fallback)
+    // extraction. Empty values fall through to Layer 1 as before.
+    overrides = {},
+  } = options;
   
   // Support both URL string (legacy) and searchResult object (new)
   let videoUrl, platform, searchTitle;
@@ -368,6 +377,13 @@ export async function ingestVideo(videoUrlOrResult, options = {}) {
     // Normalize artist name (fix capitalization)
     artist = normalizeArtistName(artist);
 
+    // Layer 2 OVERRIDE — if inbox provided authoritative artist, take it
+    // (must happen BEFORE artistSlug below, otherwise file path mismatches)
+    if (overrides.artist) {
+      console.log(`   🎯 [OVERRIDE] artist: "${overrides.artist}" (was "${artist}")`);
+      artist = normalizeArtistName(overrides.artist);
+    }
+
     // Clean the song title after artist is determined
     const title = cleanSongTitle(rawTitle, artist);
 
@@ -416,6 +432,24 @@ export async function ingestVideo(videoUrlOrResult, options = {}) {
     }
     
     const credits = await parseCredits(description, { title, artist });
+
+    // ============================================================================
+    // LAYER 2 OVERRIDE — inbox-extracted meta supersedes Layer 1
+    // (Note: --override-artist must be processed BEFORE artistSlug computation,
+    // see block higher up; here we only override credits fields.)
+    // ============================================================================
+    if (overrides.director) {
+      console.log(`   🎯 [OVERRIDE] director: "${overrides.director}" (was "${credits.director || 'empty'}")`);
+      credits.director = overrides.director;
+    }
+    if (overrides.production) {
+      console.log(`   🎯 [OVERRIDE] production: "${overrides.production}" (was "${credits.production || 'empty'}")`);
+      credits.production = overrides.production;
+    }
+    if (overrides.key_crew) {
+      console.log(`   🎯 [OVERRIDE] key_crew: "${overrides.key_crew}"`);
+      credits.key_crew = overrides.key_crew;
+    }
 
     // ============================================================================
     // UNIVERSAL COVER LOGIC - Use yt-dlp thumbnails (YouTube + Vimeo)
@@ -583,6 +617,7 @@ export async function ingestVideo(videoUrlOrResult, options = {}) {
       // Only 3 credit fields (V7.0 - unified "production" field):
       credits.director ? `director: "${escapeQuotes(credits.director)}"` : null,
       credits.production ? `production: "${escapeQuotes(credits.production)}"` : null,
+      credits.key_crew ? `key_crew: "${escapeQuotes(credits.key_crew)}"` : null,
       credits.label ? `label: "${escapeQuotes(credits.label)}"` : null,
       `tags: ${tagsString}`,
       '---',
@@ -615,10 +650,27 @@ export async function ingestVideo(videoUrlOrResult, options = {}) {
 // CLI ENTRY POINT
 // ============================================================================
 
+function parseOverrideArg(args, flag) {
+  const idx = args.findIndex(a => a === flag);
+  return (idx >= 0 && args[idx + 1] && !args[idx + 1].startsWith('--')) ? args[idx + 1] : null;
+}
+
 async function main() {
   const args = process.argv.slice(2);
   const forceUpdate = args.includes('--force') || process.argv.includes('--force');
   const repairMode = args.includes('--repair-covers') || process.argv.includes('--repair-covers');
+
+  // Layer 2 → Layer 1 bridge (mv-scout publish flow)
+  const overrides = {
+    artist: parseOverrideArg(args, '--override-artist'),
+    director: parseOverrideArg(args, '--override-director'),
+    production: parseOverrideArg(args, '--override-production'),
+    key_crew: parseOverrideArg(args, '--override-key-crew'),
+  };
+  // Strip empty/null values so `if (overrides.X)` works
+  for (const k of Object.keys(overrides)) {
+    if (!overrides[k]) delete overrides[k];
+  }
 
   // Batch mode: --file <path>
   const fileIndex = args.findIndex(a => a === '--file');
@@ -669,7 +721,7 @@ async function main() {
   }
 
   try {
-    await ingestVideo(videoUrl, { force: forceUpdate, repairCovers: repairMode });
+    await ingestVideo(videoUrl, { force: forceUpdate, repairCovers: repairMode, overrides });
   } catch (error) {
     console.error('❌ Fatal error:', error.message);
     process.exit(1);

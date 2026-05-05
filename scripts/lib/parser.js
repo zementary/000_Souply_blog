@@ -43,6 +43,21 @@ const KNOWN_MAPPINGS = {
   // Aggregator/Brand channels that publish multi-artist
   'alofokemusicsounds': null,      // Dominicano music aggregator
   'marathon': null,                // game brand · forces title-extract per Marathon-Poppy fix
+  // V8.2: game-brand channels (Marathon set precedent · 2026-05-02 audit)
+  'fortnite': null,
+  'riot games': null,
+  'sony interactive': null,
+  'sony interactive entertainment': null,
+  'ea games': null,
+  'electronic arts': null,
+  'activision': null,
+  'ubisoft': null,
+  'rockstar games': null,
+  'bethesda softworks': null,
+  // V8.2: media/brand channels (force title-artist extract)
+  'marvel entertainment': null,
+  'disney music': null,
+  'a24': null,
 
   // Band names that match channel names (keep as-is)
   'the shoes': 'The Shoes',
@@ -86,6 +101,14 @@ const TITLE_NOISE_PATTERNS = [
   /\(8K\)/gi,
   /\[UHD\]/gi,
   /\(UHD\)/gi,
+  // V8.2: Asian TV broadcaster + show-name suffix patterns
+  // Examples seen: "(NHK総合「Vaundy 18祭」テーマソング)", "(TV Asahi「Music Station」EXIT)",
+  //              "/ Vaundy：MUSIC VIDEO", "/ アーティスト名：MUSIC VIDEO"
+  /\((?:NHK|TV\s*Asahi|フジテレビ|TBS|テレビ朝日)[^)]*\)/gi,  // (NHK..) parenthetical
+  /\(.*?[「『][^」』]+[」』][^)]*\)/g,                       // (...「show name」...)
+  /\s*\/\s*[^\/]*[:：]\s*MUSIC\s*VIDEO\s*$/gi,              // / X: MUSIC VIDEO suffix
+  // NOTE: deliberately NOT adding broad "trailing /<x>" stripper — risk of
+  // eating valid genre tags like "R&B / Hip-Hop" or song titles with slash.
 ];
 
 /**
@@ -162,6 +185,10 @@ function validateDirector(name) {
     'Camera',
     'Video',         // catches "Video Director" mis-extractions
     'Animator',      // belt-and-braces (Anim already covers most; explicit for safety)
+    'Visual',        // V8.2: Visual Director / Visual Effects (tech, not director)
+    'Costume',       // V8.2: Costume Designer
+    'Wardrobe',      // V8.2: Wardrobe Stylist
+    'Stylist',       // V8.2: any *-Stylist role
   ];
   
   // Check if name contains any blocklisted words (case-insensitive)
@@ -247,7 +274,7 @@ export async function parseCredits(description, context = {}) {
     // - "Casting Director"
     // - "Director's Assistant"
     // - "Director's Rep"
-    /(?:^|\n)\s*(?<!Art\s)(?<!Creative\s)(?<!Assistant\s)(?<!Casting\s)(?<!Executive\s)(?<!Technical\s)(?<!Music\s)Director(?!'s\s+(?:Assistant|Rep))(?!\s+of\s+Photography)\s*[:.\-]?\s*([^\n]+?)(?:\n|$)/i,
+    /(?:^|\n)\s*(?<!Art\s)(?<!Creative\s)(?<!Assistant\s)(?<!Casting\s)(?<!Executive\s)(?<!Technical\s)(?<!Music\s)(?<!Choreography\s)(?<!Animation\s)(?<!Costume\s)(?<!Visual\s)Director(?!'s\s+(?:Assistant|Rep))(?!\s+of\s+Photography)\s*[:.\-]?\s*([^\n]+?)(?:\n|$)/i,
     
     // Priority A2: "Written & Directed by" (artist as director)
     /(?:^|\n)\s*(?:Written\s*(?:and|&)\s*Directed\s*by)\s*[:.\-]?\s*([^\n]+?)(?:\n|$)/i,
@@ -348,67 +375,44 @@ export async function parseCredits(description, context = {}) {
     }
   }
   
-  // Priority 2: Produced by / Producer (if Priority 1 not found)
-  if (!credits.production) {
-    const priority2Patterns = [
-      // "Produced by COMPANY" or "Produced by Name"
-      /(?:^|\n)\s*Produced\s+by\s+([A-Z][^\n]+?)(?:\s*\n|$|,|\s+for\s+)/i,
-      // Generic "Producer:"
-      /(?:^|\n)\s*\bProducer\s*[:.\-]?\s*([^\n]+?)(?:\n|$)/i,
-    ];
-    
-    for (const pattern of priority2Patterns) {
-      const match = description.match(pattern);
-      if (match && match[1] && !isBlacklistedRole(match[0])) {
-        let production = match[1].trim();
-        
-        // Clean up
-        production = production
-          .replace(/^[-–—:.\s]+/, '')
-          .replace(/^(?:by|and|with|&)\s+/i, '')
-          .replace(/\s*https?:\/\/\S+/g, '')
-          .replace(/\s*@[\w.]+/g, '')
-          .replace(/\s*\([^)]*\)\s*/g, ' ')
-          .split(/\n/)[0]
-          .trim();
-        
-        production = production.replace(/[,.\-–—:]+$/, '').trim();
-        
-        if (production.length >= 2 && production.length <= 80) {
-          credits.production = production;
-          break;
-        }
-      }
-    }
-  }
-  
-  // Priority 3: Executive Producer (LOWEST - only if Priority 1 & 2 not found)
-  if (!credits.production) {
-    const priority3Patterns = [
-      /(?:^|\n)\s*Executive\s+Producers?\s*[:.\-]?\s*([^\n]+?)(?:\n|$)/i,
-    ];
-    
-    for (const pattern of priority3Patterns) {
-      const match = description.match(pattern);
-      if (match && match[1] && !isBlacklistedRole(match[0])) {
-        let production = match[1].trim();
-        
-        // Clean up
-        production = production
-          .replace(/^[-–—:.\s]+/, '')
-          .replace(/^(?:by|and|with|&)\s+/i, '')
-          .replace(/\s*https?:\/\/\S+/g, '')
-          .replace(/\s*@[\w.]+/g, '')
-          .replace(/\s*\([^)]*\)\s*/g, ' ')
-          .split(/\n/)[0]
-          .trim();
-        
-        production = production.replace(/[,.\-–—:]+$/, '').trim();
-        
-        if (production.length >= 2 && production.length <= 80) {
-          credits.production = production;
-          break;
-        }
+  // V8.2 (2026-05-06): Removed Priority 2 (Produced by / Producer) and Priority 3
+  // (Executive Producer) waterfalls. Rationale: producer person names are weak
+  // signal in MV genre + create island links in Souply graph. production field
+  // is now strictly company-only. Solo producer cases lose extraction (rare in MV).
+  // ~80 LOC removed; LLM fallback compensates for genuine company-only cases.
+
+  // ============================================================================
+  // 2.5. KEY_CREW EXTRACTION (V8.2 — single most prominent technical collaborator)
+  // ============================================================================
+  // Pick exactly ONE key_crew member; priority by signal strength:
+  //   1. DOP / Cinematographer (strongest visual signal)
+  //   2. VFX (when explicitly credited)
+  //   3. Animation (when explicit; for animated MVs)
+  //   4. Choreography (dance films)
+  // Format: "Name (Role)" — frontend can route to typed fields if desired.
+
+  const keyCrewPatterns = [
+    { role: 'Cinematographer', pat: /(?:^|\n)\s*(?:DOP|DP|Cinematographer|Director\s+of\s+Photography)\s*[:.\-]?\s*([^\n]+?)(?:\n|$)/i },
+    { role: 'VFX', pat: /(?:^|\n)\s*VFX(?:\s+(?:by|Supervisor))?\s*[:.\-]?\s*([^\n]+?)(?:\n|$)/i },
+    { role: 'Animation', pat: /(?:^|\n)\s*Animation(?:\s+by)?\s*[:.\-]?\s*([^\n]+?)(?:\n|$)/i },
+    { role: 'Choreographer', pat: /(?:^|\n)\s*Choreograph(?:y|er)(?:\s+by)?\s*[:.\-]?\s*([^\n]+?)(?:\n|$)/i },
+  ];
+
+  for (const { role, pat } of keyCrewPatterns) {
+    const match = description.match(pat);
+    if (match && match[1]) {
+      let name = match[1].trim()
+        .replace(/^[-–—:.\s]+/, '')
+        .replace(/^(?:by|and|with|&)\s+/i, '')
+        .replace(/\s*https?:\/\/\S+/g, '')
+        .replace(/\s*@[\w.]+/g, '')
+        .replace(/\s*\([^)]*\)\s*/g, ' ')
+        .split(/\n/)[0]
+        .trim()
+        .replace(/[,.\-–—:]+$/, '');
+      if (name.length >= 2 && name.length <= 60) {
+        credits.key_crew = `${name} (${role})`;
+        break;
       }
     }
   }
@@ -444,26 +448,32 @@ export async function parseCredits(description, context = {}) {
   }
   
   // ============================================================================
-  // 4. LLM FALLBACK (Non-blocking ingest-safe layer)
+  // 4. LLM FALLBACK (Non-blocking ingest-safe layer · V8.2 widened trigger)
   // ============================================================================
+  // V8.2 trigger now also fires when regex matched something but validateDirector
+  // rejected ALL candidates (signal lost otherwise). Previously only fired when
+  // regex produced nothing.
   const llmEnabled = process.env.LLM_CREDITS_ENABLED === 'true';
   const needsLLM =
-    (!credits.director && !credits.production) &&
+    (!credits.director && !credits.production && !credits.key_crew) &&
     typeof description === 'string' &&
     description.length > 80;
-  
+
   if (llmEnabled && needsLLM) {
     try {
       console.log('   🤖 [CREDITS] Falling back to LLM extraction layer...');
       const { title = '', artist = '' } = context || {};
       const llmCredits = await llmExtractCredits(description, title, artist);
-      
+
       if (llmCredits) {
         if (!credits.director && llmCredits.director) {
           credits.director = llmCredits.director;
         }
         if (!credits.production && llmCredits.production) {
           credits.production = llmCredits.production;
+        }
+        if (!credits.key_crew && llmCredits.key_crew) {
+          credits.key_crew = llmCredits.key_crew;
         }
         if (!credits.label && llmCredits.label) {
           credits.label = llmCredits.label;
@@ -474,7 +484,7 @@ export async function parseCredits(description, context = {}) {
       console.log(`   ⚠️ [CREDITS] LLM fallback failed: ${err?.message || 'unknown error'}`);
     }
   }
-  
+
   return credits;
 }
 
