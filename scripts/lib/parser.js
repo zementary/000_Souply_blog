@@ -19,13 +19,34 @@ const KNOWN_MAPPINGS = {
   'pp_rocksxx': 'PinkPantheress',
   'asaprockyuptown': 'A$AP Rocky',
   'gambinoarchive': 'Childish Gambino',
-  
-  // Labels/Official but should use specific artist
-  'foreign family collective': null, // Keep as label, extract from title
-  
+
+  // Labels/Aggregators — must extract artist from title (channel != artist)
+  // Verified from 2026-05-05 audit (commit 1e3ffa6 fixed HYBE LABELS → KATSEYE / BTS).
+  'foreign family collective': null,
+  'hybe labels': null,            // verified · KATSEYE / BTS / NewJeans / etc.
+  'sm entertainment': null,        // K-pop label · multi-artist
+  'jyp entertainment': null,       // K-pop label · multi-artist
+  'yg entertainment': null,        // K-pop label · multi-artist
+  'starship entertainment': null,  // STARSHIP 404 #28 audit deferral · disambiguates label-vs-artist
+  'columbia records': null,
+  'sony music': null,
+  'sony music entertainment': null,
+  'universal music group': null,
+  'atlantic records': null,
+  'republic records': null,
+  'def jam recordings': null,
+  'rca records': null,
+  'capitol records': null,
+  'warner records': null,
+  'interscope records': null,
+
+  // Aggregator/Brand channels that publish multi-artist
+  'alofokemusicsounds': null,      // Dominicano music aggregator
+  'marathon': null,                // game brand · forces title-extract per Marathon-Poppy fix
+
   // Band names that match channel names (keep as-is)
   'the shoes': 'The Shoes',
-  
+
   // Add more mappings as needed
 };
 
@@ -139,6 +160,8 @@ function validateDirector(name) {
     'Cinematographer',
     'Videographer',
     'Camera',
+    'Video',         // catches "Video Director" mis-extractions
+    'Animator',      // belt-and-braces (Anim already covers most; explicit for safety)
   ];
   
   // Check if name contains any blocklisted words (case-insensitive)
