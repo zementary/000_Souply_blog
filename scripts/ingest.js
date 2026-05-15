@@ -361,13 +361,23 @@ export async function ingestVideo(videoUrlOrResult, options = {}) {
       const titleMatchB = rawTitle.match(/^\[MV\]\s*(.+?)\s*[-–—]\s*/);
       // Pattern 3: Artist name in quotes: "Artist" - Song
       const titleMatchC = rawTitle.match(/^['""]([^'""]+)['""]?\s*[-–—]?\s*/);
-      
+      // Pattern 4: SM/JYP label format "Artist [Korean] 'Song Title' MV" (no dash separator)
+      // e.g. "aespa 에스파 'WDA (Whole Different Animal) (Feat. G-DRAGON)' MV"
+      // Fires only when no dash-separator exists (Patterns 1-3 would have matched otherwise)
+      const titleMatchD = rawTitle.match(/^(.+?)\s*[''']\s*.+?\s*[''']/);
+
       if (titleMatchA && titleMatchA[1].length > 1 && titleMatchA[1].length < 50) {
         artist = titleMatchA[1].trim();
       } else if (titleMatchB) {
         artist = titleMatchB[1].trim();
       } else if (titleMatchC) {
         artist = titleMatchC[1].trim();
+      } else if (titleMatchD && titleMatchD[1].length > 1 && titleMatchD[1].length < 50) {
+        // Strip Hangul annotations: "aespa 에스파" → "aespa"
+        const rawFromTitle = titleMatchD[1].trim();
+        const stripped = rawFromTitle.replace(/[가-힣ᄀ-ᇿ㄰-㆏ꥠ-꥿ힰ-퟿]/g, '').replace(/\s{2,}/g, ' ').trim();
+        artist = stripped.length > 1 ? stripped : rawFromTitle;
+        console.log(`   🎯 [BRAIN] SM-quote format: extracted artist "${artist}" from title`);
       } else if (isFanRepost && extractedArtistFromChannel) {
         // Fallback: use extracted artist from fan repost channel name
         artist = extractedArtistFromChannel;

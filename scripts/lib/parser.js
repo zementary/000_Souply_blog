@@ -25,6 +25,7 @@ const KNOWN_MAPPINGS = {
   'foreign family collective': null,
   'hybe labels': null,            // verified · KATSEYE / BTS / NewJeans / etc.
   'sm entertainment': null,        // K-pop label · multi-artist
+  'smtown': null,                  // SM Entertainment main YT channel · "Artist 에스파 'Song' MV" format
   'jyp entertainment': null,       // K-pop label · multi-artist
   'yg entertainment': null,        // K-pop label · multi-artist
   'starship entertainment': null,  // STARSHIP 404 #28 audit deferral · disambiguates label-vs-artist
@@ -499,6 +500,8 @@ export function normalizeArtistName(artistName) {
   if (!artistName) return '';
   // Special case mappings for artists with specific capitalization
   const artistMappings = {
+    'aespa': 'aespa',
+    'aespa 에스파': 'aespa',
     'charli xcx': 'Charli XCX',
     'asap rocky': 'A$AP Rocky',
     'a$ap rocky': 'A$AP Rocky',
